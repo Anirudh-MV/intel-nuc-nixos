@@ -85,7 +85,6 @@
     extraGroups = [ "networkmanager" "wheel" ];
     packages = with pkgs; [
       kdePackages.kate
-    #  thunderbird
     ];
   };
 
@@ -99,16 +98,40 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-   vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+   vim
    tailscale
-  #  wget
+   vscode
+   dig # helpful DNS utility
+   busybox # common linux utils - nslookup/printf
+   xrdp # remote desktop
+   git
   ];
+
+  environment.plasma6.excludePackages = with pkgs.kdePackages;
+  [
+    akonadi # The backend for Kontact (email, calendar, contacts, etc.)
+    kmail # The KDE email client
+    korganizer # The KDE calendar application
+    kaddressbook # The KDE address book
+    kontact # The KDE PIM suite (meta-package for the above)
+    plasma-vault # For encrypted data vaults (optional, but often unwanted)
+    elisa
+    kwalletmanager
+  ];
+
+  systemd.user.services.akonadi-server.enable = false;
+  systemd.user.services.akonadi-server.wantedBy = [ ];
 
   services.tailscale.enable = true;
   services.tailscale.extraSetFlags = ["--advertise-routes=192.168.0.0/16"];
-  systemd.services.tailscale = {
+
+  services.xrdp.enable = true;
+  # services.xrdp.defaultWindowManager = "${pkgs.plasma-workspace}/bin/startplasma-x11";
+  services.xrdp.defaultWindowManager = "xfce4-session";
+  services.xrdp.openFirewall = true;
+
+  systemd.services.tailscaled = {
     enable = true;
-    after = ["NetworkManager-wait-online.service"];
     serviceConfig = {
       User = "root";
       Group = "root";
