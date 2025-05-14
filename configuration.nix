@@ -160,6 +160,10 @@
     };
   };
 
+  # Kernel options to set on boot for tailscale
+  boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
+  boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 1;
+
   # List services that you want to enable:
 
   # Enable the OpenSSH daemon.
