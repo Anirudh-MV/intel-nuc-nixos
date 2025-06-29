@@ -60,7 +60,7 @@
   services.printing.enable = true;
 
   # Enable sound with pipewire.
-  hardware.pulseaudio.enable = false;
+  services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
@@ -99,12 +99,18 @@
   # $ nix search wget
   environment.systemPackages = with pkgs; [
    vim
+   neovim
    tailscale
    vscode
    dig # helpful DNS utility
    busybox # common linux utils - nslookup/printf
    xrdp # remote desktop
    git
+   uptime-kuma
+   ethtool
+   networkd-dispatcher
+   tmux
+   gcc
   ];
 
   environment.plasma6.excludePackages = with pkgs.kdePackages;
@@ -123,7 +129,7 @@
   systemd.user.services.akonadi-server.wantedBy = [ ];
 
   services.tailscale.enable = true;
-  services.tailscale.extraSetFlags = ["--advertise-routes=192.168.0.0/16"];
+  services.tailscale.extraSetFlags = ["--advertise-routes=172.30.0.0/16"];
 
   services.xrdp.enable = true;
   # services.xrdp.defaultWindowManager = "${pkgs.plasma-workspace}/bin/startplasma-x11";
@@ -138,7 +144,15 @@
     };
   };
 
-
+  services.networkd-dispatcher = {
+    enable = true;
+     rules."50-tailscale" = {
+       onState = ["routable"];
+       script = ''
+         "${pkgs.ethtool} -K eno1 rx-udp-gro-forwarding on rx-gro-list off"
+       '';
+     };
+  };
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -165,6 +179,8 @@
   boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 1;
 
   # List services that you want to enable:
+  services.uptime-kuma.enable = true;
+  services.uptime-kuma.settings.PORT = "6000";
 
   # Enable the OpenSSH daemon.
   services.openssh = {
