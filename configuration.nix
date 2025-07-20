@@ -95,6 +95,14 @@
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
+  # Enable zsh
+  # commented because it's not working as the default shell. and bash shell is working alright
+  # programs.zsh.enable = true;
+  # programs.zsh.syntaxHighlighting.enable = true;
+  # programs.zsh.ohMyZsh.enable = true;
+  # programs.zsh.ohMyZsh.theme = "gnzh";
+
+
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
@@ -111,7 +119,13 @@
    networkd-dispatcher
    tmux
    gcc
+   btop
   ];
+
+  environment.shellAliases = {
+    sudovim = "sudo -E -s nvim";
+    sudonvim = "sudo -E -s nvim";
+  };
 
   environment.plasma6.excludePackages = with pkgs.kdePackages;
   [
@@ -161,10 +175,30 @@
   #   enable = true;
   #   enableSSHSupport = true;
   # };
+ 
+ 
+  # Enable cron service
+  services.cron = {
+    enable = true;
+    systemCronJobs = [
+      ''
+        */1 * * * *      root    curl --retry 3 https://hc-ping.com/$(cat /etc/HC_UUID)/intel-nuc
+      ''
+
+      # "*/1 * * * *      root    curl -s -w \"%{http_code}\" \"$(cat /etc/CCTV_IP)\""
+       
+      ''
+        */1 * * * *      root    [[ $(curl -s -o /dev/null -w "\%{http_code}" "$(cat /etc/CCTV_IP)") -eq 200 ]] && curl --retry 3 https://hc-ping.com/$(cat /etc/HC_UUID)/cctv
+      ''
+    ];
+  };
 
   services.nginx = {
     enable = true;
     virtualHosts.localhost = {
+    listen = [
+      { addr="0.0.0.0"; port = 1337; }
+    ];
     locations."/" = {
       return = "200 '<html><body>It working</body></html>'";
       extraConfig = ''
@@ -173,6 +207,84 @@
       };
     };
   };
+ 
+  # traefik config
+  services.traefik.enable = true;
+
+  services.traefik.staticConfigOptions = {
+    # 3.1 Define Entrypoints for HTTP and HTTPS
+    entryPoints = {
+      web = {
+        address = ":80";
+        # 3.2 Redirect all HTTP to HTTPS
+        # http.redirections.entryPoint = {
+          # to = "websecure";
+          # scheme = "https";
+        # };
+      };
+    };
+
+    api.dashboard = true;
+  };
+
+   services.traefik.dynamicConfigOptions = {
+    http = {
+      # 4.1 Routers to handle incoming requests
+      routers = {
+        ollama = {
+          rule = "Host(`ollama.home.anirudhmv.in`)";
+          entryPoints = [ "web" ];
+          service = "ollama";
+        };
+        uptime = {
+          rule = "Host(`uptime.home.anirudhmv.in`)";
+          entryPoints = [ "web" ];
+          service = "uptime";
+        };
+        default = {
+          rule = "Path(`/`)";
+          entryPoints = [ "web" ];
+          service = "default";
+        };
+      };
+
+      # 4.2 Services that point to your applications
+      services = {
+        ollama = {
+          loadBalancer.servers = [{
+            url = "http://localhost:11480";
+          }];
+        };
+        uptime = {
+          loadBalancer.servers = [{
+            url = "http://localhost:6000";
+          }];
+        };
+        default = {
+          loadBalancer.servers = [{
+            url = "http://localhost:1337";
+          }];
+        };
+      };
+    };
+  };
+
+  # ollama
+  services.ollama = {
+    enable = true;
+    # Optional: preload models, see https://ollama.com/library
+    loadModels = [ "qwen2.5-coder:7b" "deepseek-r1:8b" ];
+    host = "0.0.0.0";
+  };
+
+  services.open-webui = {
+    enable = true;
+    port = 11480;
+    host = "0.0.0.0";
+    environment = {
+        # WEBUI_AUTH = "false";
+      };
+    };
 
   # Kernel options to set on boot for tailscale
   boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
