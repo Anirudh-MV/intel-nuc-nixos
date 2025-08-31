@@ -10,6 +10,10 @@
       ./hardware-configuration.nix
     ];
 
+  nix.extraOptions = ''
+    experimental-features = nix-command flakes
+  '';
+
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -90,6 +94,7 @@
 
   # Install firefox.
   programs.firefox.enable = true;
+  programs.bat.enable = true;
 
 
   # Allow unfree packages
@@ -97,10 +102,21 @@
 
   # Enable zsh
   # commented because it's not working as the default shell. and bash shell is working alright
-  # programs.zsh.enable = true;
-  # programs.zsh.syntaxHighlighting.enable = true;
-  # programs.zsh.ohMyZsh.enable = true;
-  # programs.zsh.ohMyZsh.theme = "gnzh";
+  programs.zsh.enable = true;
+  programs.zsh.syntaxHighlighting.enable = true;
+  programs.zsh.ohMyZsh.enable = true;
+  programs.zsh.ohMyZsh.theme = "gnzh";
+
+  users.extraUsers.nuc = {
+    shell = pkgs.zsh;
+  };
+
+  programs.git.config = {
+    init = {
+      defaultBranch = "main";
+    };
+  };
+
 
 
   # List packages installed in system profile. To search, run:
@@ -120,11 +136,14 @@
    tmux
    gcc
    btop
+   home-manager
+   gnumake
   ];
 
   environment.shellAliases = {
     sudovim = "sudo -E -s nvim";
     sudonvim = "sudo -E -s nvim";
+    svim = "sudo -E -s nvim";
   };
 
   environment.plasma6.excludePackages = with pkgs.kdePackages;
@@ -143,7 +162,7 @@
   systemd.user.services.akonadi-server.wantedBy = [ ];
 
   services.tailscale.enable = true;
-  services.tailscale.extraSetFlags = ["--advertise-routes=172.30.0.0/16"];
+  services.tailscale.extraSetFlags = ["--advertise-routes=172.30.0.0/16,172.29.1.1/32"];
 
   services.xrdp.enable = true;
   # services.xrdp.defaultWindowManager = "${pkgs.plasma-workspace}/bin/startplasma-x11";
@@ -182,13 +201,17 @@
     enable = true;
     systemCronJobs = [
       ''
-        */1 * * * *      root    curl --retry 3 https://hc-ping.com/$(cat /etc/HC_UUID)/intel-nuc
+        */5 * * * *      root    curl --retry 3 https://hc-ping.com/$(cat /etc/HC_UUID)/intel-nuc
       ''
 
       # "*/1 * * * *      root    curl -s -w \"%{http_code}\" \"$(cat /etc/CCTV_IP)\""
        
       ''
-        */1 * * * *      root    [[ $(curl -s -o /dev/null -w "\%{http_code}" "$(cat /etc/CCTV_IP)") -eq 200 ]] && curl --retry 3 https://hc-ping.com/$(cat /etc/HC_UUID)/cctv
+        */2 * * * *      root    [[ $(curl -s -o /dev/null -w "\%{http_code}" "$(cat /etc/CCTV_IP)") -eq 200 ]] && curl --retry 3 https://hc-ping.com/$(cat /etc/HC_UUID)/cctv
+      ''
+      
+      ''
+        * */12 * * *      root    curl https://api.vercel.com/v1/integrations/deploy/$(cat /etc/VERCEL_SAT)/
       ''
     ];
   };
@@ -306,11 +329,30 @@
     };
   };
 
+  # working code for running docker/podman containers
+  #
+  # virtualisation.oci-containers.containers."neko" = {
+  #   image = "ghcr.io/m1k1o/neko/firefox:latest";
+  #   ports = [
+  #     "9087:8080"
+  #     "56000-56100:56000-56100/udp"
+  #   ];
+  #   environment = {
+  #     NEKO_WEBRTC_EPR = "56000-56100";
+  #     # NEKO_WEBRTC_NAT1TO1 = "127.0.0.1";
+  #     NEKO_MEMBER_MULTIUSER_USER_PASSWORD = "neko";
+  #     NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD = "admin";
+  #   };
+  # };
+
   # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
+  networking.firewall.allowedTCPPorts = [ 22 80 443 67 ];
   # networking.firewall.allowedUDPPorts = [ ... ];
+  networking.firewall.allowedUDPPortRanges = [
+    { from = 49152; to = 65535; }
+  ];
   # Or disable the firewall altogether.
-  networking.firewall.enable = false;
+  networking.firewall.enable = true;
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
