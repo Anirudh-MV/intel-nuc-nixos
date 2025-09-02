@@ -211,7 +211,7 @@
       ''
       
       ''
-        * */12 * * *      root    curl https://api.vercel.com/v1/integrations/deploy/$(cat /etc/VERCEL_SAT)/
+        0 */12 * * *      root    curl https://api.vercel.com/v1/integrations/deploy/$(cat /etc/VERCEL_SAT)/
       ''
     ];
   };
